@@ -91,6 +91,9 @@ class QuestionFactory {
       prompt: prompt,
       choices: choices,
       correct: choices.indexOf(answer),
+      teamByChoice: (type == QType.jerseyToTeam || type == QType.nameToTeam)
+          ? {for (final t in data.teams.values) t.name: t}
+          : null,
     );
   }
 

@@ -37,6 +37,7 @@ class Team {
     required this.abbr,
     required this.color,
     required this.alt,
+    this.logoUrl,
   });
 
   final String id;
@@ -44,6 +45,9 @@ class Team {
   final String abbr;
   final Color color;
   final Color alt;
+
+  /// Only populated in personal builds (see config.dart).
+  final String? logoUrl;
 
   /// Colour for the jersey number: the team's alternate colour if it
   /// contrasts with the jersey, otherwise white or black.
@@ -60,6 +64,7 @@ class Team {
     'abbr': abbr,
     'color': color.toARGB32(),
     'alt': alt.toARGB32(),
+    'logo': logoUrl,
   };
 
   factory Team.fromJson(Map<String, dynamic> j) => Team(
@@ -68,6 +73,7 @@ class Team {
     abbr: j['abbr'],
     color: Color(j['color']),
     alt: Color(j['alt']),
+    logoUrl: j['logo'],
   );
 }
 
@@ -123,7 +129,12 @@ class Question {
     required this.prompt,
     required this.choices,
     required this.correct,
+    this.teamByChoice,
   });
+
+  /// For questions whose answers are teams: maps each choice to its team
+  /// (used to show logos in personal builds).
+  final Map<String, Team>? teamByChoice;
 
   final QType type;
   final Player player;

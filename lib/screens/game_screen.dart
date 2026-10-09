@@ -2,10 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../config.dart';
 import '../game_controller.dart';
 import '../jersey_widget.dart';
 import '../models.dart';
 import '../settings.dart';
+import '../team_logo.dart';
 import '../theme.dart';
 import 'result_screen.dart';
 
@@ -327,7 +329,13 @@ class _GameScreenState extends State<GameScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (q.showsJersey) ...[
-          JerseyWidget(team: q.team, number: q.player.number, size: 160),
+          // The logo would give away the answer on "which team" questions.
+          JerseyWidget(
+            team: q.team,
+            number: q.player.number,
+            size: 160,
+            showLogo: q.type == QType.jerseyToPlayer,
+          ),
           if (q.type == QType.jerseyToPlayer && c.difficulty == Difficulty.easy)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -336,7 +344,13 @@ class _GameScreenState extends State<GameScreen> {
                 style: Court.display(22, color: Court.amber),
               ),
             ),
-        ] else
+        ] else ...[
+          // Personal builds: show the team logo when the team isn't the answer.
+          if (kPersonal && q.type == QType.nameToNumber)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: TeamLogo(team: q.team, size: 72),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Text(
@@ -345,6 +359,7 @@ class _GameScreenState extends State<GameScreen> {
               style: Court.display(46),
             ),
           ),
+        ],
         const SizedBox(height: 8),
         Text(
           q.prompt,
@@ -406,6 +421,10 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
               const SizedBox(width: 12),
+              if (kPersonal && q.teamByChoice?[q.choices[i]] != null) ...[
+                TeamLogo(team: q.teamByChoice![q.choices[i]]!, size: 34),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Text(
                   q.choices[i],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config.dart';
 import '../data_service.dart';
 import '../game_controller.dart';
 import '../models.dart';
@@ -289,13 +290,18 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () => _load(force: true),
               child: const Text('Refresh rosters'),
             ),
-            TextButton.icon(
-              onPressed: _checkUpdate,
-              icon: const Icon(Icons.system_update, size: 18),
-              label: Text(
-                _version == null ? 'Check for updates' : 'Update (v$_version)',
+            // Personal builds are shared directly; the public release is
+            // logo-free, so updating from it would remove the logos.
+            if (!kPersonal)
+              TextButton.icon(
+                onPressed: _checkUpdate,
+                icon: const Icon(Icons.system_update, size: 18),
+                label: Text(
+                  _version == null
+                      ? 'Check for updates'
+                      : 'Update (v$_version)',
+                ),
               ),
-            ),
           ],
         ),
       ],

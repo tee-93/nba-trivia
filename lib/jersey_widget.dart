@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'config.dart';
 import 'models.dart';
+import 'team_logo.dart';
 
 /// A tank-top jersey silhouette in the team's colours with a number on it.
 class JerseyWidget extends StatelessWidget {
@@ -9,14 +11,19 @@ class JerseyWidget extends StatelessWidget {
     required this.team,
     required this.number,
     this.size = 220,
+    this.showLogo = false,
   });
 
   final Team team;
   final String number;
   final double size;
 
+  /// Personal builds only: draw the team logo above the number.
+  final bool showLogo;
+
   @override
   Widget build(BuildContext context) {
+    final logo = kPersonal && showLogo && team.logoUrl != null;
     return SizedBox(
       width: size,
       height: size * 1.2,
@@ -28,15 +35,24 @@ class JerseyWidget extends StatelessWidget {
             painter: _JerseyPainter(team.color, team.numberColor),
           ),
           Padding(
-            padding: EdgeInsets.only(top: size * 0.22),
-            child: Text(
-              number,
-              style: TextStyle(
-                color: team.numberColor,
-                fontSize: size * 0.42,
-                fontWeight: FontWeight.w900,
-                height: 1,
-              ),
+            padding: EdgeInsets.only(top: size * (logo ? 0.16 : 0.22)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (logo) ...[
+                  TeamLogo(team: team, size: size * 0.22),
+                  SizedBox(height: size * 0.02),
+                ],
+                Text(
+                  number,
+                  style: TextStyle(
+                    color: team.numberColor,
+                    fontSize: size * (logo ? 0.38 : 0.42),
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

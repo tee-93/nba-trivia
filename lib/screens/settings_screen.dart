@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config.dart';
 import '../leaderboard.dart';
 import '../settings.dart';
 import '../stats_service.dart';
@@ -90,7 +91,7 @@ class SettingsScreen extends StatelessWidget {
                     leading: const Icon(Icons.info_outline),
                     title: const Text('NBA Jersey Trivia'),
                     subtitle: Text(
-                      'Version ${snap.data ?? '…'}\nRoster data from ESPN. Not affiliated with the NBA.',
+                      'Version ${snap.data ?? '…'}${kPersonal ? ' (personal build)' : ''}\nRoster data from ESPN. Not affiliated with the NBA.',
                     ),
                     isThreeLine: true,
                   ),

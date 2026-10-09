@@ -4,6 +4,7 @@ import 'package:flutter/painting.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'config.dart';
 import 'models.dart';
 
 /// Loads teams, rosters and draft years from ESPN's public NBA API and
@@ -13,6 +14,9 @@ class DataService {
       'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
   static const _core =
       'https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/athletes';
+
+  // Separate cache per build type so logo URLs never leak into the public build.
+  static const _dataKey = kPersonal ? 'data_v2_personal' : 'data_v2';
 
   static const minDraft = 2020;
   static const maxDraft = 2024;
@@ -51,7 +55,7 @@ class DataService {
     bool force = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString('data_v1');
+    final cached = prefs.getString(_dataKey);
     final ts = prefs.getInt('data_ts') ?? 0;
     final fresh =
         DateTime.now().millisecondsSinceEpoch - ts <
@@ -60,7 +64,7 @@ class DataService {
 
     try {
       final data = await _fetch(prefs, onStatus);
-      await prefs.setString('data_v1', _encode(data));
+      await prefs.setString(_dataKey, _encode(data));
       await prefs.setInt('data_ts', DateTime.now().millisecondsSinceEpoch);
       return data;
     } catch (_) {
@@ -85,6 +89,7 @@ class DataService {
         abbr: x['abbreviation'] ?? '',
         color: colorFromHex(x['color'], const Color(0xFF444444)),
         alt: colorFromHex(x['alternateColor'], const Color(0xFFFFFFFF)),
+        logoUrl: kPersonal ? _logoUrl(x) : null,
       );
     }
 
@@ -168,6 +173,12 @@ class DataService {
       throw Exception('Not enough player data returned (${players.length}).');
     }
     return GameData(teams, players);
+  }
+
+  static String? _logoUrl(Map<String, dynamic> team) {
+    final logos = team['logos'] as List?;
+    if (logos == null || logos.isEmpty) return null;
+    return logos.first['href'] as String?;
   }
 
   Future<String> _get(String url) async {
