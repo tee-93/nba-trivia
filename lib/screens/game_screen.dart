@@ -6,6 +6,7 @@ import '../config.dart';
 import '../game_controller.dart';
 import '../jersey_widget.dart';
 import '../models.dart';
+import '../player_headshot.dart';
 import '../settings.dart';
 import '../team_logo.dart';
 import '../theme.dart';
@@ -345,11 +346,21 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
         ] else ...[
-          // Personal builds: show the team logo when the team isn't the answer.
+          // Personal builds: headshot + logo when neither gives away the
+          // answer (the number is the answer here). On "which team" questions
+          // the portrait's uniform would leak the team, so it waits for the
+          // reveal below.
           if (kPersonal && q.type == QType.nameToNumber)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: TeamLogo(team: q.team, size: 72),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PlayerHeadshot(player: q.player, size: 96),
+                  const SizedBox(width: 14),
+                  TeamLogo(team: q.team, size: 64),
+                ],
+              ),
             ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
@@ -366,6 +377,24 @@ class _GameScreenState extends State<GameScreen> {
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
+        // Personal builds: reveal who it was once the answer is in.
+        if (kPersonal && c.revealed && q.type != QType.nameToNumber)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Column(
+              children: [
+                PlayerHeadshot(player: q.player, size: 84),
+                if (q.showsJersey)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      q.player.name.toUpperCase(),
+                      style: Court.display(22, color: Court.amber),
+                    ),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }
