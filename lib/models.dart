@@ -5,15 +5,24 @@ enum Difficulty { easy, medium, hard }
 extension DifficultyX on Difficulty {
   String get label => name[0].toUpperCase() + name.substring(1);
   int get seconds => switch (this) {
-        Difficulty.easy => 20,
-        Difficulty.medium => 12,
-        Difficulty.hard => 8,
-      };
+    Difficulty.easy => 20,
+    Difficulty.medium => 12,
+    Difficulty.hard => 8,
+  };
 }
 
-enum GameMode { round, survival }
+enum GameMode { round, survival, daily }
 
 enum QType { jerseyToPlayer, jerseyToTeam, nameToNumber, nameToTeam }
+
+extension QTypeX on QType {
+  String get label => switch (this) {
+    QType.jerseyToPlayer => 'Jersey → player',
+    QType.jerseyToTeam => 'Jersey → team',
+    QType.nameToNumber => 'Player → number',
+    QType.nameToTeam => 'Player → team',
+  };
+}
 
 Color colorFromHex(String? hex, Color fallback) {
   if (hex == null || hex.length != 6) return fallback;
@@ -46,20 +55,20 @@ class Team {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'abbr': abbr,
-        'color': color.toARGB32(),
-        'alt': alt.toARGB32(),
-      };
+    'id': id,
+    'name': name,
+    'abbr': abbr,
+    'color': color.toARGB32(),
+    'alt': alt.toARGB32(),
+  };
 
   factory Team.fromJson(Map<String, dynamic> j) => Team(
-        id: j['id'],
-        name: j['name'],
-        abbr: j['abbr'],
-        color: Color(j['color']),
-        alt: Color(j['alt']),
-      );
+    id: j['id'],
+    name: j['name'],
+    abbr: j['abbr'],
+    color: Color(j['color']),
+    alt: Color(j['alt']),
+  );
 }
 
 class Player {
@@ -82,22 +91,22 @@ class Player {
   final int tier;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'teamId': teamId,
-        'number': number,
-        'draftYear': draftYear,
-        'tier': tier,
-      };
+    'id': id,
+    'name': name,
+    'teamId': teamId,
+    'number': number,
+    'draftYear': draftYear,
+    'tier': tier,
+  };
 
   factory Player.fromJson(Map<String, dynamic> j) => Player(
-        id: j['id'],
-        name: j['name'],
-        teamId: j['teamId'],
-        number: j['number'],
-        draftYear: j['draftYear'],
-        tier: j['tier'],
-      );
+    id: j['id'],
+    name: j['name'],
+    teamId: j['teamId'],
+    number: j['number'],
+    draftYear: j['draftYear'],
+    tier: j['tier'],
+  );
 }
 
 class GameData {

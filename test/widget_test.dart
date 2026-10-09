@@ -7,5 +7,3 @@ void main() {
     expect(find.byType(NbaTriviaApp), findsOneWidget);
   });
 }
-
-

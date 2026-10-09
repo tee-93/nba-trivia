@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'leaderboard.dart';
 import 'models.dart';
 import 'question_factory.dart';
+import 'settings.dart';
+import 'stats_service.dart';
 
 class GameController extends ChangeNotifier {
   GameController({
@@ -12,14 +14,18 @@ class GameController extends ChangeNotifier {
     required this.mode,
     required this.difficulty,
     required this.names,
-  })  : _factory = QuestionFactory(data, difficulty),
-        scores = List.filled(names.length, 0),
-        correctCount = List.filled(names.length, 0),
-        streak = List.filled(names.length, 0),
-        bestStreak = List.filled(names.length, 0),
-        lives = List.filled(names.length, startingLives),
-        asked = List.filled(names.length, 0),
-        timeMs = List.filled(names.length, 0) {
+  }) : _factory = QuestionFactory(
+         data,
+         difficulty,
+         seed: mode == GameMode.daily ? DailyService.seedFor() : null,
+       ),
+       scores = List.filled(names.length, 0),
+       correctCount = List.filled(names.length, 0),
+       streak = List.filled(names.length, 0),
+       bestStreak = List.filled(names.length, 0),
+       lives = List.filled(names.length, startingLives),
+       asked = List.filled(names.length, 0),
+       timeMs = List.filled(names.length, 0) {
     _beginTurn();
   }
 
@@ -38,12 +44,14 @@ class GameController extends ChangeNotifier {
   final List<int> lives;
   final List<int> asked;
   final List<int> timeMs;
+  final List<AnswerRecord> history = [];
 
   int turn = 0;
   late Question question;
   int? picked;
   bool revealed = false;
   bool waitingForHandoff = false;
+  bool paused = false;
   bool finished = false;
   int secondsLeft = 0;
   int lastPoints = 0;
@@ -54,6 +62,7 @@ class GameController extends ChangeNotifier {
   int get playerCount => names.length;
   String get currentName => names[turn];
   bool get isSurvival => mode == GameMode.survival;
+  bool get isDaily => mode == GameMode.daily;
 
   /// Question number for the current player (1-based).
   int get questionNumber => asked[turn] + (revealed ? 0 : 1);
@@ -64,6 +73,9 @@ class GameController extends ChangeNotifier {
     revealed = false;
     secondsLeft = difficulty.seconds;
     waitingForHandoff = playerCount > 1;
+    _sw
+      ..stop()
+      ..reset();
     if (!waitingForHandoff) _startTimer();
     notifyListeners();
   }
@@ -77,9 +89,7 @@ class GameController extends ChangeNotifier {
   }
 
   void _startTimer() {
-    _sw
-      ..reset()
-      ..start();
+    _sw.start();
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       secondsLeft--;
@@ -87,13 +97,29 @@ class GameController extends ChangeNotifier {
         secondsLeft = 0;
         _resolve(null);
       } else {
+        if (secondsLeft <= 3) Fx.play(Sfx.tick);
         notifyListeners();
       }
     });
   }
 
+  void pause() {
+    if (paused || revealed || waitingForHandoff || finished) return;
+    paused = true;
+    _timer?.cancel();
+    _sw.stop();
+    notifyListeners();
+  }
+
+  void resume() {
+    if (!paused) return;
+    paused = false;
+    _startTimer();
+    notifyListeners();
+  }
+
   void answer(int index) {
-    if (revealed || waitingForHandoff) return;
+    if (revealed || waitingForHandoff || paused) return;
     _resolve(index);
   }
 
@@ -105,21 +131,33 @@ class GameController extends ChangeNotifier {
     picked = index;
     asked[turn]++;
     final ok = index == question.correct;
-    timeMs[turn] += index == null
+    final ms = index == null
         ? difficulty.seconds * 1000
         : _sw.elapsedMilliseconds.clamp(0, difficulty.seconds * 1000);
+    timeMs[turn] += ms;
+    history.add(
+      AnswerRecord(
+        playerIndex: turn,
+        question: question,
+        picked: index,
+        ms: ms,
+      ),
+    );
 
     if (ok) {
       correctCount[turn]++;
       streak[turn]++;
       if (streak[turn] > bestStreak[turn]) bestStreak[turn] = streak[turn];
-      lastPoints =
-          100 + secondsLeft * 5 + (streak[turn] - 1).clamp(0, 10) * 10;
+      lastPoints = 100 + secondsLeft * 5 + (streak[turn] - 1).clamp(0, 10) * 10;
       scores[turn] += lastPoints;
+      Fx.play(Sfx.correct);
+      Fx.good();
     } else {
       lastPoints = 0;
       streak[turn] = 0;
       if (isSurvival) lives[turn]--;
+      Fx.play(index == null ? Sfx.buzzer : Sfx.wrong);
+      Fx.bad();
     }
     notifyListeners();
   }
@@ -127,7 +165,7 @@ class GameController extends ChangeNotifier {
   bool _canPlay(int p) =>
       isSurvival ? lives[p] > 0 : asked[p] < questionsPerPlayer;
 
-  /// True if the player who just answered still has questions/lives left.
+  /// True if nobody has questions/lives left after the current answer.
   bool get gameOverAfterThis {
     for (var i = 0; i < playerCount; i++) {
       if (_canPlay(i)) return false;
@@ -148,22 +186,39 @@ class GameController extends ChangeNotifier {
     _finish();
   }
 
+  bool isPerfect(int p) => !isSurvival && correctCount[p] == questionsPerPlayer;
+  bool get anyPerfect => List.generate(playerCount, isPerfect).any((x) => x);
+
   Future<void> _finish() async {
     finished = true;
     _timer?.cancel();
+    Fx.play(anyPerfect ? Sfx.perfect : Sfx.gameover);
     notifyListeners();
     final lb = LeaderboardService();
     for (var p = 0; p < playerCount; p++) {
-      if (bestStreak[p] > 0) {
+      if (!isDaily && bestStreak[p] > 0) {
         await lb.record(Board.streak, names[p], difficulty, bestStreak[p]);
       }
       if (isSurvival && scores[p] > 0) {
         await lb.record(Board.survival, names[p], difficulty, scores[p]);
       }
-      if (!isSurvival && correctCount[p] == questionsPerPlayer) {
+      if (mode == GameMode.round && isPerfect(p)) {
         await lb.record(Board.fastest, names[p], difficulty, timeMs[p]);
       }
     }
+    if (isDaily) {
+      await DailyService().recordIfFirst(
+        score: scores[0],
+        correct: correctCount[0],
+      );
+    }
+    await StatsService().recordGame(
+      history,
+      perfectRounds: List.generate(
+        playerCount,
+        (p) => isPerfect(p) ? 1 : 0,
+      ).fold(0, (a, b) => a + b),
+    );
   }
 
   /// Indices of the winning player(s) by score.
@@ -171,7 +226,7 @@ class GameController extends ChangeNotifier {
     final best = scores.reduce((a, b) => a > b ? a : b);
     return [
       for (var i = 0; i < playerCount; i++)
-        if (scores[i] == best) i
+        if (scores[i] == best) i,
     ];
   }
 

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
+import 'settings.dart';
+import 'theme.dart';
 
-void main() => runApp(const NbaTriviaApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Settings.instance.load();
+  runApp(const NbaTriviaApp());
+}
 
 class NbaTriviaApp extends StatelessWidget {
   const NbaTriviaApp({super.key});
@@ -12,15 +18,7 @@ class NbaTriviaApp extends StatelessWidget {
     return MaterialApp(
       title: 'NBA Jersey Trivia',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFF7A1A),
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF12141A),
-      ),
+      theme: Court.theme(),
       home: const HomeScreen(),
     );
   }

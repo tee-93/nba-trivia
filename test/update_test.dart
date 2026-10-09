@@ -9,4 +9,3 @@ void main() {
     expect(compareVersions('2.0', '1.9.9'), greaterThan(0));
   });
 }
-

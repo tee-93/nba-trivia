@@ -53,7 +53,8 @@ class DataService {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString('data_v1');
     final ts = prefs.getInt('data_ts') ?? 0;
-    final fresh = DateTime.now().millisecondsSinceEpoch - ts <
+    final fresh =
+        DateTime.now().millisecondsSinceEpoch - ts <
         const Duration(hours: 24).inMilliseconds;
     if (cached != null && fresh && !force) return _decode(cached);
 
@@ -88,10 +89,12 @@ class DataService {
     }
 
     onStatus?.call('Loading rosters…');
-    final rosters = await Future.wait(teams.keys.map((id) async {
-      final body = await _get('$_site/teams/$id/roster');
-      return MapEntry(id, jsonDecode(body));
-    }));
+    final rosters = await Future.wait(
+      teams.keys.map((id) async {
+        final body = await _get('$_site/teams/$id/roster');
+        return MapEntry(id, jsonDecode(body));
+      }),
+    );
 
     // Roster entries with a jersey number and plausible NBA experience.
     final candidates = <Map<String, dynamic>>[];
@@ -113,8 +116,8 @@ class DataService {
 
     // Draft years are cached permanently (they never change).
     final draftCache = <String, int>{
-      for (final e in (jsonDecode(prefs.getString('draft_v1') ?? '{}') as Map)
-          .entries)
+      for (final e
+          in (jsonDecode(prefs.getString('draft_v1') ?? '{}') as Map).entries)
         e.key as String: e.value as int,
     };
     final missing = candidates
@@ -123,16 +126,19 @@ class DataService {
         .toList();
     for (var i = 0; i < missing.length; i += 20) {
       onStatus?.call(
-          'Checking draft classes… ${i.clamp(0, missing.length)}/${missing.length}');
+        'Checking draft classes… ${i.clamp(0, missing.length)}/${missing.length}',
+      );
       final batch = missing.skip(i).take(20);
-      final results = await Future.wait(batch.map((id) async {
-        try {
-          final j = jsonDecode(await _get('$_core/$id'));
-          return MapEntry(id, (j['draft']?['year'] as num?)?.toInt() ?? 0);
-        } catch (_) {
-          return null; // retry next load
-        }
-      }));
+      final results = await Future.wait(
+        batch.map((id) async {
+          try {
+            final j = jsonDecode(await _get('$_core/$id'));
+            return MapEntry(id, (j['draft']?['year'] as num?)?.toInt() ?? 0);
+          } catch (_) {
+            return null; // retry next load
+          }
+        }),
+      );
       for (final r in results) {
         if (r != null) draftCache[r.key] = r.value;
       }
@@ -147,14 +153,16 @@ class DataService {
       final tier = (_stars.contains(c['name']) || salary >= 35000000)
           ? 0
           : (salary >= 12000000 ? 1 : 2);
-      players.add(Player(
-        id: c['id'],
-        name: c['name'],
-        teamId: c['teamId'],
-        number: c['number'],
-        draftYear: year,
-        tier: tier,
-      ));
+      players.add(
+        Player(
+          id: c['id'],
+          name: c['name'],
+          teamId: c['teamId'],
+          number: c['number'],
+          draftYear: year,
+          tier: tier,
+        ),
+      );
     }
     if (players.length < 12) {
       throw Exception('Not enough player data returned (${players.length}).');
@@ -163,8 +171,9 @@ class DataService {
   }
 
   Future<String> _get(String url) async {
-    final res =
-        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+    final res = await http
+        .get(Uri.parse(url))
+        .timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) {
       throw Exception('HTTP ${res.statusCode} for $url');
     }
@@ -172,19 +181,20 @@ class DataService {
   }
 
   String _encode(GameData d) => jsonEncode({
-        'teams': d.teams.values.map((t) => t.toJson()).toList(),
-        'players': d.players.map((p) => p.toJson()).toList(),
-      });
+    'teams': d.teams.values.map((t) => t.toJson()).toList(),
+    'players': d.players.map((p) => p.toJson()).toList(),
+  });
 
   GameData _decode(String s) {
     final j = jsonDecode(s);
     final teams = {
       for (final t in (j['teams'] as List)) ...{
         (t['id'] as String): Team.fromJson(t),
-      }
+      },
     };
-    final players =
-        (j['players'] as List).map((p) => Player.fromJson(p)).toList();
+    final players = (j['players'] as List)
+        .map((p) => Player.fromJson(p))
+        .toList();
     return GameData(teams, players);
   }
 }

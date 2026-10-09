@@ -4,7 +4,12 @@ import 'models.dart';
 
 /// A tank-top jersey silhouette in the team's colours with a number on it.
 class JerseyWidget extends StatelessWidget {
-  const JerseyWidget({super.key, required this.team, required this.number, this.size = 220});
+  const JerseyWidget({
+    super.key,
+    required this.team,
+    required this.number,
+    this.size = 220,
+  });
 
   final Team team;
   final String number;
@@ -54,7 +59,12 @@ class _JerseyPainter extends CustomPainter {
       ..moveTo(o(32, 0).dx, o(32, 0).dy)
       ..quadraticBezierTo(o(50, 26).dx, o(50, 26).dy, o(68, 0).dx, o(68, 0).dy)
       ..lineTo(o(84, 4).dx, o(84, 4).dy)
-      ..quadraticBezierTo(o(86, 40).dx, o(86, 40).dy, o(100, 56).dx, o(100, 56).dy)
+      ..quadraticBezierTo(
+        o(86, 40).dx,
+        o(86, 40).dy,
+        o(100, 56).dx,
+        o(100, 56).dy,
+      )
       ..lineTo(o(100, 120).dx, o(100, 120).dy)
       ..lineTo(o(0, 120).dx, o(0, 120).dy)
       ..lineTo(o(0, 56).dx, o(0, 56).dy)
@@ -74,5 +84,6 @@ class _JerseyPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_JerseyPainter old) => old.fill != fill || old.trim != trim;
+  bool shouldRepaint(_JerseyPainter old) =>
+      old.fill != fill || old.trim != trim;
 }
