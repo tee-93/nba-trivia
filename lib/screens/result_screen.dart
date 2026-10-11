@@ -145,6 +145,11 @@ class _ResultScreenState extends State<ResultScreen> {
             const SizedBox(height: 8),
             Text('Correct: ${c.correctCount[i]} of ${c.asked[i]}'),
             Text('Best streak: ${c.bestStreak[i]}'),
+            if (c.history.any((r) => r.playerIndex == i && r.usedLifeline))
+              Text(
+                '50/50s used: '
+                '${c.history.where((r) => r.playerIndex == i && r.usedLifeline).length}',
+              ),
             if (!c.isSurvival)
               Text(
                 'Total answer time: ${(c.timeMs[i] / 1000).toStringAsFixed(1)}s',
@@ -247,7 +252,8 @@ class _ResultScreenState extends State<ResultScreen> {
       subtitle: Text(
         '$subject\n'
         '${c.playerCount > 1 ? '${c.names[r.playerIndex]}: ' : ''}$yours'
-        '${r.correct ? '' : '  →  ${q.choices[q.correct]}'}',
+        '${r.correct ? '' : '  →  ${q.choices[q.correct]}'}'
+        '${r.usedLifeline ? '  (50/50)' : ''}',
       ),
       isThreeLine: true,
     );

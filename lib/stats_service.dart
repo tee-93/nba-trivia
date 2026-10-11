@@ -10,7 +10,11 @@ class AnswerRecord {
     required this.question,
     required this.picked,
     required this.ms,
+    this.usedLifeline = false,
   });
+
+  /// Whether a 50/50 was used on this question.
+  final bool usedLifeline;
 
   final int playerIndex;
   final Question question;

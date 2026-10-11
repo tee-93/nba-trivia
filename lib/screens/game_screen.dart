@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../config.dart';
 import '../game_controller.dart';
 import '../jersey_widget.dart';
+import '../lifeline_service.dart';
 import '../models.dart';
 import '../player_headshot.dart';
 import '../settings.dart';
@@ -232,6 +233,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
+          if (c.lifelinesEnabled) _lifelineBar(),
           for (var i = 0; i < q.choices.length; i++) _choice(i),
           SizedBox(
             height: 54,
@@ -250,6 +252,44 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   )
                 : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 50/50 button with the credit balance and progress to the next credit.
+  Widget _lifelineBar() {
+    final i = c.turn;
+    final free = c.freeLeft[i];
+    final credits = c.credits[i];
+    final label = c.usedLifeline
+        ? '50/50 used'
+        : free > 0
+        ? '50/50 · FREE'
+        : '50/50 · $credits';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Credits: $credits  ·  ${c.creditProgress[i]}/'
+              '${LifelineService.answersPerCredit} to next',
+              style: TextStyle(
+                fontSize: 12,
+                color: Court.line.withValues(alpha: 0.65),
+              ),
+            ),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: c.canUseLifeline ? c.useLifeline : null,
+            icon: const Icon(Icons.filter_2, size: 18),
+            label: Text(label),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 38),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
           ),
         ],
       ),
@@ -337,7 +377,7 @@ class _GameScreenState extends State<GameScreen> {
             size: 160,
             showLogo: q.type == QType.jerseyToPlayer,
           ),
-          if (q.type == QType.jerseyToPlayer && c.difficulty == Difficulty.easy)
+          if (q.type == QType.jerseyToPlayer && c.difficulty.hintsTeam)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
@@ -377,6 +417,22 @@ class _GameScreenState extends State<GameScreen> {
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
+        if (c.revealed && c.picked == q.correct && c.usedLifeline)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '+${c.lastPoints} pts (half, 50/50 used)',
+              style: TextStyle(color: Court.line.withValues(alpha: 0.7)),
+            ),
+          ),
+        if (c.revealed && c.creditEarned)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '+1 50/50 credit earned!',
+              style: Court.display(24, color: Court.amber),
+            ),
+          ),
         // Personal builds: reveal who it was once the answer is in.
         if (kPersonal && c.revealed && q.type != QType.nameToNumber)
           Padding(
@@ -403,6 +459,7 @@ class _GameScreenState extends State<GameScreen> {
     final q = c.question;
     final isCorrect = c.revealed && i == q.correct;
     final isWrongPick = c.revealed && i == c.picked && i != q.correct;
+    final gone = c.eliminated.contains(i);
     final bg = isCorrect
         ? Court.good
         : isWrongPick
@@ -414,7 +471,7 @@ class _GameScreenState extends State<GameScreen> {
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: c.revealed || c.paused
+        onTap: c.revealed || c.paused || gone
             ? null
             : () {
                 Fx.tap();
@@ -457,9 +514,10 @@ class _GameScreenState extends State<GameScreen> {
               Expanded(
                 child: Text(
                   q.choices[i],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
+                    decoration: gone ? TextDecoration.lineThrough : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -494,6 +552,13 @@ class _GameScreenState extends State<GameScreen> {
         child: button,
       );
     }
-    return Padding(padding: const EdgeInsets.only(bottom: 8), child: button);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AnimatedOpacity(
+        opacity: gone ? 0.25 : 1,
+        duration: const Duration(milliseconds: 250),
+        child: button,
+      ),
+    );
   }
 }

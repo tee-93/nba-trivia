@@ -48,14 +48,15 @@ void main() {
     expect(_sequence(20261009), isNot(_sequence(20261010)));
   });
 
-  test('every question has 4 unique choices containing the answer', () {
+  test('every question has the right number of unique choices', () {
     for (final d in Difficulty.values) {
       final f = QuestionFactory(_data(), d);
       for (var i = 0; i < 60; i++) {
         final q = f.next();
-        expect(q.choices.length, 4, reason: '${d.name} ${q.type.name}');
-        expect(q.choices.toSet().length, 4, reason: '${d.name} ${q.type.name}');
-        expect(q.correct, inInclusiveRange(0, 3));
+        final reason = '${d.name} ${q.type.name}';
+        expect(q.choices.length, d.choiceCount, reason: reason);
+        expect(q.choices.toSet().length, d.choiceCount, reason: reason);
+        expect(q.correct, inInclusiveRange(0, d.choiceCount - 1));
       }
     }
   });

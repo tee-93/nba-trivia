@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config.dart';
 import '../data_service.dart';
 import '../game_controller.dart';
+import '../lifeline_service.dart';
 import '../models.dart';
 import '../settings.dart';
 import '../stats_service.dart';
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _version;
   GameData? _data;
   DailyStatus? _dailyStatus;
+  LifelineState _lifeline = const LifelineState();
   String _status = 'Starting…';
   String? _error;
 
@@ -43,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _load();
     _refreshDaily();
+    _refreshLifeline();
     _updates
         .currentVersion()
         .then((v) {
@@ -99,12 +102,21 @@ class _HomeScreenState extends State<HomeScreen> {
       mode: mode,
       difficulty: diff,
       names: names,
+      // Saved 50/50 credits belong to single-player games.
+      startingCredits: _lifeline.credits,
+      startingProgress: _lifeline.progress,
     );
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => GameScreen(controller: controller)),
     );
     _refreshDaily();
+    _refreshLifeline();
+  }
+
+  Future<void> _refreshLifeline() async {
+    final s = await LifelineService().load();
+    if (mounted) setState(() => _lifeline = s);
   }
 
   void _play() {
@@ -227,14 +239,23 @@ class _HomeScreenState extends State<HomeScreen> {
           showSelectedIcon: false,
           segments: [
             for (final d in Difficulty.values)
-              ButtonSegment(value: d, label: Text(d.label)),
+              ButtonSegment(
+                value: d,
+                label: Text(
+                  d.label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
           ],
           selected: {_difficulty},
           onSelectionChanged: (s) => setState(() => _difficulty = s.first),
         ),
         const SizedBox(height: 4),
         Text(
-          '${_difficulty.seconds} seconds per question',
+          '${_difficulty.seconds} seconds per question  ·  '
+          '${_difficulty.choiceCount} answers',
           style: TextStyle(
             color: Court.line.withValues(alpha: 0.55),
             fontSize: 12,
@@ -267,7 +288,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            '50/50 credits: ${_lifeline.credits}  ·  one free every game, '
+            '+1 per ${LifelineService.answersPerCredit} correct answers',
+            style: TextStyle(
+              fontSize: 12,
+              color: Court.line.withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         FilledButton(
           onPressed: _play,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60)),

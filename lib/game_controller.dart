@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'leaderboard.dart';
+import 'lifeline_service.dart';
 import 'models.dart';
 import 'question_factory.dart';
 import 'settings.dart';
@@ -14,11 +15,31 @@ class GameController extends ChangeNotifier {
     required this.mode,
     required this.difficulty,
     required this.names,
+    int startingCredits = 0,
+    int startingProgress = 0,
   }) : _factory = QuestionFactory(
          data,
          difficulty,
          seed: mode == GameMode.daily ? DailyService.seedFor() : null,
        ),
+       // Saved credits belong to the phone's single player; in two-player
+       // games each player earns credits for that game only.
+       freeLeft = List.filled(
+         names.length,
+         mode == GameMode.daily ? 0 : LifelineService.freePerGame,
+       ),
+       credits = [
+         for (var i = 0; i < names.length; i++)
+           (i == 0 && names.length == 1 && mode != GameMode.daily)
+               ? startingCredits
+               : 0,
+       ],
+       creditProgress = [
+         for (var i = 0; i < names.length; i++)
+           (i == 0 && names.length == 1 && mode != GameMode.daily)
+               ? startingProgress
+               : 0,
+       ],
        scores = List.filled(names.length, 0),
        correctCount = List.filled(names.length, 0),
        streak = List.filled(names.length, 0),
@@ -46,6 +67,18 @@ class GameController extends ChangeNotifier {
   final List<int> timeMs;
   final List<AnswerRecord> history = [];
 
+  // 50/50 lifelines, per player.
+  final List<int> freeLeft;
+  final List<int> credits;
+  final List<int> creditProgress;
+
+  /// Answer indexes removed by a 50/50 on the current question.
+  final Set<int> eliminated = {};
+  bool usedLifeline = false;
+
+  /// True when the last answer earned a 50/50 credit.
+  bool creditEarned = false;
+
   int turn = 0;
   late Question question;
   int? picked;
@@ -64,6 +97,49 @@ class GameController extends ChangeNotifier {
   bool get isSurvival => mode == GameMode.survival;
   bool get isDaily => mode == GameMode.daily;
 
+  /// The Daily Challenge stays a pure test, so there are no lifelines there.
+  bool get lifelinesEnabled => !isDaily;
+
+  /// Whether the current player can use a 50/50 right now.
+  bool get canUseLifeline =>
+      lifelinesEnabled &&
+      !revealed &&
+      !waitingForHandoff &&
+      !paused &&
+      !finished &&
+      !usedLifeline &&
+      (freeLeft[turn] > 0 || credits[turn] > 0);
+
+  /// Whether lifeline credits earned here are saved on the phone.
+  bool get _savesCredits => playerCount == 1 && lifelinesEnabled;
+
+  /// Removes wrong answers, leaving the right one and one wrong one.
+  void useLifeline() {
+    if (!canUseLifeline) return;
+    if (freeLeft[turn] > 0) {
+      freeLeft[turn]--;
+    } else {
+      credits[turn]--;
+    }
+    usedLifeline = true;
+    final wrong = [
+      for (var i = 0; i < question.choices.length; i++)
+        if (i != question.correct) i,
+    ]..shuffle();
+    // 4 answers: remove 2 wrong ones. 3 answers (Very Easy): remove 1.
+    eliminated.addAll(wrong.take(question.choices.length - 2));
+    Fx.play(Sfx.lifeline);
+    Fx.tap();
+    _saveCredits();
+    notifyListeners();
+  }
+
+  void _saveCredits() {
+    if (_savesCredits) {
+      LifelineService().save(credits[0], creditProgress[0]);
+    }
+  }
+
   /// Question number for the current player (1-based).
   int get questionNumber => asked[turn] + (revealed ? 0 : 1);
 
@@ -71,6 +147,9 @@ class GameController extends ChangeNotifier {
     question = _factory.next();
     picked = null;
     revealed = false;
+    eliminated.clear();
+    usedLifeline = false;
+    creditEarned = false;
     secondsLeft = difficulty.seconds;
     waitingForHandoff = playerCount > 1;
     _sw
@@ -141,14 +220,31 @@ class GameController extends ChangeNotifier {
         question: question,
         picked: index,
         ms: ms,
+        usedLifeline: usedLifeline,
       ),
     );
 
     if (ok) {
       correctCount[turn]++;
-      streak[turn]++;
-      if (streak[turn] > bestStreak[turn]) bestStreak[turn] = streak[turn];
-      lastPoints = 100 + secondsLeft * 5 + (streak[turn] - 1).clamp(0, 10) * 10;
+      if (usedLifeline) {
+        // Half points, and the answer keeps the streak alive without
+        // extending it or earning a credit.
+        lastPoints = (100 + secondsLeft * 5) ~/ 2;
+      } else {
+        streak[turn]++;
+        if (streak[turn] > bestStreak[turn]) bestStreak[turn] = streak[turn];
+        lastPoints =
+            100 + secondsLeft * 5 + (streak[turn] - 1).clamp(0, 10) * 10;
+        if (lifelinesEnabled) {
+          creditProgress[turn]++;
+          if (creditProgress[turn] >= LifelineService.answersPerCredit) {
+            creditProgress[turn] = 0;
+            credits[turn]++;
+            creditEarned = true;
+          }
+          _saveCredits();
+        }
+      }
       scores[turn] += lastPoints;
       Fx.play(Sfx.correct);
       Fx.good();

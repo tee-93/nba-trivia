@@ -9,6 +9,7 @@ class QuestionFactory {
     // Sorting makes the pool order independent of how rosters were fetched.
     final all = [...data.players]..sort((a, b) => a.id.compareTo(b.id));
     final p = switch (difficulty) {
+      Difficulty.veryEasy => all.where((x) => x.tier == 0).toList(),
       Difficulty.easy => all.where((x) => x.tier == 0).toList(),
       Difficulty.medium => all.where((x) => x.tier <= 1).toList(),
       Difficulty.hard => all,
@@ -33,7 +34,12 @@ class QuestionFactory {
     final player = avail[_rng.nextInt(avail.length)];
     _used.add(player.id);
     final team = data.teams[player.teamId]!;
-    final type = QType.values[_rng.nextInt(QType.values.length)];
+    // Very Easy sticks to matching jerseys and stars to teams, and jerseys to
+    // well-known players. Guessing a jersey number is left to the other levels.
+    final types = difficulty == Difficulty.veryEasy
+        ? const [QType.jerseyToTeam, QType.jerseyToPlayer, QType.nameToTeam]
+        : QType.values;
+    final type = types[_rng.nextInt(types.length)];
 
     switch (type) {
       case QType.jerseyToPlayer:
@@ -83,7 +89,10 @@ class QuestionFactory {
     String answer,
     Iterable<String> distractors,
   ) {
-    final choices = <String>[answer, ...distractors.take(3)]..shuffle(_rng);
+    final choices = <String>[
+      answer,
+      ...distractors.take(difficulty.choiceCount - 1),
+    ]..shuffle(_rng);
     return Question(
       type: type,
       player: player,
@@ -110,6 +119,13 @@ class QuestionFactory {
     }
 
     switch (difficulty) {
+      case Difficulty.veryEasy:
+        // Other stars, from different teams, so the colour is a fair hint.
+        others.sort(
+          (a, b) => (a.tier == 0 ? 0 : 1).compareTo(b.tier == 0 ? 0 : 1),
+        );
+        final seen = <String>{p.teamId};
+        take((o) => seen.add(o.teamId));
       case Difficulty.easy:
         // Different teams, so the jersey colour gives a fair hint.
         final seen = <String>{p.teamId};
@@ -136,6 +152,16 @@ class QuestionFactory {
       }
 
       others.sort((a, b) => dist(a).compareTo(dist(b)));
+    } else if (difficulty == Difficulty.veryEasy) {
+      // Pick wrong answers whose colours look clearly different.
+      double dist(Team x) {
+        final a = x.color, b = t.color;
+        return (a.r - b.r).abs() + (a.g - b.g).abs() + (a.b - b.b).abs();
+      }
+
+      others.sort((a, b) => dist(b).compareTo(dist(a)));
+      final far = others.take(14).toList()..shuffle(_rng);
+      return far.take(3).map((x) => x.name);
     }
     return others.take(3).map((x) => x.name);
   }

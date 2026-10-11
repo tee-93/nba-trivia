@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
 
-enum Difficulty { easy, medium, hard }
+enum Difficulty { veryEasy, easy, medium, hard }
 
 extension DifficultyX on Difficulty {
-  String get label => name[0].toUpperCase() + name.substring(1);
+  String get label => switch (this) {
+    Difficulty.veryEasy => 'Very Easy',
+    Difficulty.easy => 'Easy',
+    Difficulty.medium => 'Medium',
+    Difficulty.hard => 'Hard',
+  };
+
   int get seconds => switch (this) {
+    Difficulty.veryEasy => 30,
     Difficulty.easy => 20,
     Difficulty.medium => 12,
     Difficulty.hard => 8,
   };
+
+  /// Number of answers offered per question.
+  int get choiceCount => this == Difficulty.veryEasy ? 3 : 4;
+
+  /// Easy levels show the team name under the jersey on "whose jersey" questions.
+  bool get hintsTeam => index <= Difficulty.easy.index;
 }
 
 enum GameMode { round, survival, daily }

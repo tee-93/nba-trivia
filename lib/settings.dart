@@ -31,7 +31,7 @@ class Settings extends ChangeNotifier {
   }
 }
 
-enum Sfx { correct, wrong, tick, gameover, perfect, buzzer }
+enum Sfx { correct, wrong, tick, gameover, perfect, buzzer, lifeline }
 
 /// Plays short sound effects and haptic pulses, honouring [Settings].
 class Fx {
